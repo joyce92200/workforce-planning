@@ -1,0 +1,19 @@
+role,department,time_to_fill_days,pipeline_size
+Analyst,Economics & Policy,120,8
+Senior Analyst,Economics & Policy,79,20
+Manager,Economics & Policy,84,4
+Analyst,Energy & Climate,180,8
+Senior Analyst,Energy & Climate,100,5
+Manager,Energy & Climate,156,3
+Analyst,Data & Analytics,110,7
+Senior Analyst,Data & Analytics,72,21
+Manager,Data & Analytics,71,18
+Analyst,IT & Digital,84,21
+Senior Analyst,IT & Digital,94,14
+Manager,IT & Digital,153,7
+Analyst,HR & Operations,157,24
+Senior Analyst,HR & Operations,162,15
+Manager,HR & Operations,116,17
+Analyst,Communications,113,5
+Senior Analyst,Communications,112,22
+Manager,Communications,90,7
