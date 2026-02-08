@@ -65,10 +65,6 @@ This folder contains exported screenshots of the Power BI dashboard used to comm
 - **Dashboard Page Size:** 16:9 (1920 × 1080 pixels)
 - **Export Format:** PNG (high resolution for portfolio/print)
 
-## Building This Dashboard
-
-For complete step-by-step Power BI build instructions—including DAX measures, conditional formatting rules, visual specifications, and export guidelines—see [POWER_BI_BUILD_GUIDE.md](../documentation/POWER_BI_BUILD_GUIDE.md).
-
 ## Next Steps
 
 1. Build the dashboard in Power BI Desktop using the implementation guide
