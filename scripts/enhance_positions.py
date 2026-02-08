@@ -38,6 +38,7 @@ print(df_positions.head(10))
 # ENHANCEMENT LOGIC
 # ====================================================================
 
+
 def map_role_to_grade(role):
     """Map role name to grade level."""
     grade_map = {
@@ -71,7 +72,7 @@ def map_department_to_role_family(department):
 def assign_succession_risk(grade, critical_skill):
     """
     Assign succession risk based on grade and criticality.
-    
+
     Logic:
     - Analyst: Low by default, Medium if critical
     - Senior Analyst: Medium, High if critical
@@ -89,7 +90,7 @@ def assign_succession_risk(grade, critical_skill):
 def assign_hiring_priority(grade, critical_skill, succession_risk):
     """
     Assign hiring priority based on criticality and succession risk.
-    
+
     Logic:
     - High: Critical skills OR high succession risk
     - Medium: Senior roles without critical flag
@@ -106,13 +107,13 @@ def assign_hiring_priority(grade, critical_skill, succession_risk):
 def calculate_filled_positions(required_headcount, grade, critical_skill):
     """
     Calculate realistic filled positions.
-    
+
     Assumptions:
     - Analyst roles: 80-90% filled (higher demand/churn)
     - Senior Analyst: 85-95% filled (critical talent)
     - Manager: 90-98% filled (senior positions rarer)
     - Critical skills: higher fill rate (more demand to fill)
-    
+
     This simulates realistic vacancy patterns in international orgs.
     """
     if grade == 'Analyst':
@@ -126,11 +127,11 @@ def calculate_filled_positions(required_headcount, grade, critical_skill):
         base_fill_rate = 0.96 if critical_skill else 0.91
     else:
         base_fill_rate = 0.90
-    
+
     # Add realistic variation (±3%)
     variation = np.random.uniform(-0.03, 0.03)
     fill_rate = max(0.70, min(0.99, base_fill_rate + variation))
-    
+
     return int(np.floor(required_headcount * fill_rate))
 
 
@@ -221,11 +222,14 @@ vacancy_matches = (
     df_positions['vacancy_count'] ==
     (df_positions['required_headcount'] - df_positions['filled_positions'])
 ).sum()
-print(f"✓ Vacancy count consistency: {vacancy_matches}/{len(df_positions)} rows valid")
+print(
+    f"✓ Vacancy count consistency: {vacancy_matches}/{len(df_positions)} rows valid")
 
 # Check 3: Filled ≤ Required
-fill_constraint = (df_positions['filled_positions'] <= df_positions['required_headcount']).sum()
-print(f"✓ Filled ≤ Required constraint: {fill_constraint}/{len(df_positions)} rows valid")
+fill_constraint = (df_positions['filled_positions']
+                   <= df_positions['required_headcount']).sum()
+print(
+    f"✓ Filled ≤ Required constraint: {fill_constraint}/{len(df_positions)} rows valid")
 
 # Check 4: Distribution of hiring priority
 print("\n--- HIRING PRIORITY DISTRIBUTION ---")
@@ -253,14 +257,17 @@ critical_high_priority = df_positions[
     (df_positions['hiring_priority'] == 'High')
 ].shape[0]
 critical_total = df_positions[df_positions['critical_skill'] == True].shape[0]
-alignment_pct = (critical_high_priority / critical_total * 100) if critical_total > 0 else 0
-print(f"  Critical skills with High priority: {critical_high_priority}/{critical_total} ({alignment_pct:.1f}%)")
+alignment_pct = (critical_high_priority / critical_total *
+                 100) if critical_total > 0 else 0
+print(
+    f"  Critical skills with High priority: {critical_high_priority}/{critical_total} ({alignment_pct:.1f}%)")
 
 # Check 7: Vacancy rate statistics
 print("\n--- VACANCY RATE STATISTICS ---")
 print(f"  Mean vacancy rate: {df_positions['vacancy_rate'].mean():.1f}%")
 print(f"  Median vacancy rate: {df_positions['vacancy_rate'].median():.1f}%")
-print(f"  Min/Max: {df_positions['vacancy_rate'].min():.1f}% / {df_positions['vacancy_rate'].max():.1f}%")
+print(
+    f"  Min/Max: {df_positions['vacancy_rate'].min():.1f}% / {df_positions['vacancy_rate'].max():.1f}%")
 
 # Check 8: Vacancy rate by grade
 print("\n--- AVERAGE VACANCY RATE BY GRADE ---")
@@ -288,7 +295,8 @@ print(f"Total positions: {len(df_positions)}")
 print(f"Total required headcount: {df_positions['required_headcount'].sum()}")
 print(f"Total filled positions: {df_positions['filled_positions'].sum()}")
 print(f"Total vacancies: {df_positions['vacancy_count'].sum()}")
-print(f"Overall vacancy rate: {(df_positions['vacancy_count'].sum() / df_positions['required_headcount'].sum() * 100):.1f}%")
+print(
+    f"Overall vacancy rate: {(df_positions['vacancy_count'].sum() / df_positions['required_headcount'].sum() * 100):.1f}%")
 
 print("\nBy Department:")
 dept_summary = df_positions.groupby('department').agg({

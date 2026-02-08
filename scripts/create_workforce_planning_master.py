@@ -55,7 +55,8 @@ df_employees_agg = df_active.groupby(['department', 'grade']).agg({
 }).reset_index()
 
 # Flatten column names
-df_employees_agg.columns = ['department', 'grade', 'filled_positions', 'avg_age', 'age_stdev']
+df_employees_agg.columns = ['department', 'grade',
+                            'filled_positions', 'avg_age', 'age_stdev']
 
 # Calculate retirement risk (age >= 55)
 df_retirement = df_active.groupby(['department', 'grade']).apply(
@@ -71,11 +72,13 @@ df_employees_agg = df_employees_agg.merge(
 
 # Calculate retirement risk percentage
 df_employees_agg['retirement_risk_pct'] = (
-    df_employees_agg['retirement_risk_count'] / df_employees_agg['filled_positions'] * 100
+    df_employees_agg['retirement_risk_count'] /
+    df_employees_agg['filled_positions'] * 100
 ).round(1)
 
 # Clean up: fill NaN in age_stdev (single person per group)
-df_employees_agg['age_stdev'] = df_employees_agg['age_stdev'].fillna(0).round(1)
+df_employees_agg['age_stdev'] = df_employees_agg['age_stdev'].fillna(
+    0).round(1)
 df_employees_agg['avg_age'] = df_employees_agg['avg_age'].round(1)
 
 print(f"✓ Created {len(df_employees_agg)} department-grade combinations\n")
@@ -94,7 +97,8 @@ print("Joining with positions.csv...")
 
 # Remove filled_positions from employees aggregation to avoid merge conflict
 df_employees_agg_for_merge = df_employees_agg[
-    ['department', 'grade', 'avg_age', 'age_stdev', 'retirement_risk_count', 'retirement_risk_pct']
+    ['department', 'grade', 'avg_age', 'age_stdev',
+        'retirement_risk_count', 'retirement_risk_pct']
 ]
 
 # Perform LEFT join: keep all positions
@@ -108,11 +112,14 @@ df_master = df_positions.merge(
 # - avg_age, age_stdev, retirement metrics = 0 (no one in the role yet)
 df_master['avg_age'] = df_master['avg_age'].fillna(0).round(1)
 df_master['age_stdev'] = df_master['age_stdev'].fillna(0).round(1)
-df_master['retirement_risk_count'] = df_master['retirement_risk_count'].fillna(0).astype(int)
-df_master['retirement_risk_pct'] = df_master['retirement_risk_pct'].fillna(0).round(1)
+df_master['retirement_risk_count'] = df_master['retirement_risk_count'].fillna(
+    0).astype(int)
+df_master['retirement_risk_pct'] = df_master['retirement_risk_pct'].fillna(
+    0).round(1)
 
 print(f"✓ Joined dataset: {len(df_master)} positions")
-print(f"  (Note: filled_positions from positions.csv: {df_master['filled_positions'].sum()} total)")
+print(
+    f"  (Note: filled_positions from positions.csv: {df_master['filled_positions'].sum()} total)")
 
 print(f"✓ Joined dataset: {len(df_master)} rows")
 
@@ -123,7 +130,8 @@ print(f"✓ Joined dataset: {len(df_master)} rows")
 print("\nValidating logical constraints...")
 
 # Ensure filled ≤ required
-violations_fill = (df_master['filled_positions'] > df_master['required_headcount']).sum()
+violations_fill = (df_master['filled_positions'] >
+                   df_master['required_headcount']).sum()
 if violations_fill > 0:
     print(f"  ⚠️  WARNING: {violations_fill} rows have filled > required")
 else:
@@ -144,7 +152,8 @@ vacancy_mismatch = (
     df_master['vacancy_count'] != df_master['vacancy_count_check']
 ).sum()
 if vacancy_mismatch > 0:
-    print(f"  ⚠️  WARNING: {vacancy_mismatch} rows have mismatched vacancy_count")
+    print(
+        f"  ⚠️  WARNING: {vacancy_mismatch} rows have mismatched vacancy_count")
     # Overwrite with calculated version for consistency
     df_master['vacancy_count'] = df_master['vacancy_count_check']
     print(f"     → Recalculated vacancy_count from (required - filled)")
@@ -166,6 +175,8 @@ df_master['vacancy_rate'] = (
 ).round(1)
 
 # 2. Staffing Risk Flag
+
+
 def assign_staffing_risk(row):
     """
     Determine staffing risk based on:
@@ -175,7 +186,7 @@ def assign_staffing_risk(row):
     """
     vacancy_rate = row['vacancy_rate']
     succession_risk = row['succession_risk']
-    
+
     if vacancy_rate > 25 or succession_risk == 'High':
         return 'High'
     elif 10 <= vacancy_rate <= 25:
@@ -183,9 +194,12 @@ def assign_staffing_risk(row):
     else:
         return 'Low'
 
+
 df_master['staffing_risk_flag'] = df_master.apply(assign_staffing_risk, axis=1)
 
 # 3. Retirement Pressure Flag
+
+
 def assign_retirement_pressure(row):
     """
     Determine retirement pressure based on:
@@ -194,7 +208,7 @@ def assign_retirement_pressure(row):
     - <10% = Low/stable
     """
     retirement_pct = row['retirement_risk_pct']
-    
+
     if retirement_pct >= 20:
         return 'High'
     elif 10 <= retirement_pct < 20:
@@ -202,11 +216,14 @@ def assign_retirement_pressure(row):
     else:
         return 'Low'
 
+
 df_master['retirement_pressure_flag'] = df_master.apply(
     assign_retirement_pressure, axis=1
 )
 
 # 4. Combined Risk Score (for management summary)
+
+
 def calculate_combined_risk(row):
     """
     Combine staffing and retirement risk into a single score for prioritization.
@@ -217,13 +234,15 @@ def calculate_combined_risk(row):
     """
     staffing_map = {'High': 3, 'Medium': 2, 'Low': 1}
     retirement_map = {'High': 3, 'Medium': 2, 'Low': 1}
-    
+
     staffing_score = staffing_map.get(row['staffing_risk_flag'], 1)
     retirement_score = retirement_map.get(row['retirement_pressure_flag'], 1)
-    
+
     return staffing_score + retirement_score
 
-df_master['combined_risk_score'] = df_master.apply(calculate_combined_risk, axis=1)
+
+df_master['combined_risk_score'] = df_master.apply(
+    calculate_combined_risk, axis=1)
 
 print("  ✓ vacancy_rate calculated")
 print("  ✓ staffing_risk_flag assigned")
@@ -240,24 +259,24 @@ column_order = [
     'role',
     'grade',
     'role_family',
-    
+
     # Staffing metrics
     'required_headcount',
     'filled_positions',
     'vacancy_count',
     'vacancy_rate',
-    
+
     # Current workforce profile
     'avg_age',
     'age_stdev',
     'retirement_risk_count',
     'retirement_risk_pct',
-    
+
     # Strategic flags (from positions.csv)
     'critical_skill',
     'hiring_priority',
     'succession_risk',
-    
+
     # Derived risk indicators
     'staffing_risk_flag',
     'retirement_pressure_flag',
@@ -286,7 +305,8 @@ print("-" * 80)
 total_required = df_master['required_headcount'].sum()
 total_filled = df_master['filled_positions'].sum()
 total_vacant = df_master['vacancy_count'].sum()
-overall_vacancy_rate = (total_vacant / total_required * 100) if total_required > 0 else 0
+overall_vacancy_rate = (total_vacant / total_required *
+                        100) if total_required > 0 else 0
 
 print("\n1) OVERALL STAFFING POSITION")
 print(f"   Total Required:     {total_required:4d} positions")
@@ -314,7 +334,8 @@ for _, row in dept_summary.iterrows():
 
 # Summary 3: Staffing risk distribution
 print("\n3) STAFFING RISK DISTRIBUTION")
-risk_dist = df_master['staffing_risk_flag'].value_counts().sort_index(key=lambda x: x.map({'High': 0, 'Medium': 1, 'Low': 2}))
+risk_dist = df_master['staffing_risk_flag'].value_counts().sort_index(
+    key=lambda x: x.map({'High': 0, 'Medium': 1, 'Low': 2}))
 for risk_level in ['High', 'Medium', 'Low']:
     count = risk_dist.get(risk_level, 0)
     pct = (count / len(df_master)) * 100
@@ -322,7 +343,8 @@ for risk_level in ['High', 'Medium', 'Low']:
 
 # Summary 4: Retirement pressure distribution
 print("\n4) RETIREMENT PRESSURE DISTRIBUTION")
-retirement_dist = df_master['retirement_pressure_flag'].value_counts().sort_index(key=lambda x: x.map({'High': 0, 'Medium': 1, 'Low': 2}))
+retirement_dist = df_master['retirement_pressure_flag'].value_counts(
+).sort_index(key=lambda x: x.map({'High': 0, 'Medium': 1, 'Low': 2}))
 for pressure_level in ['High', 'Medium', 'Low']:
     count = retirement_dist.get(pressure_level, 0)
     pct = (count / len(df_master)) * 100
@@ -333,12 +355,13 @@ print("\n5) HIGHEST COMBINED RISK ROLES (focus areas for management)")
 print("   (Sorting by combined_risk_score, then vacancy_rate)\n")
 
 high_risk = df_master[
-    (df_master['staffing_risk_flag'] == 'High') | 
+    (df_master['staffing_risk_flag'] == 'High') |
     (df_master['retirement_pressure_flag'] == 'High')
 ].sort_values(['combined_risk_score', 'vacancy_rate'], ascending=[False, False])
 
 if len(high_risk) > 0:
-    print(f"   {'Department':<25} {'Role':<20} {'Grade':<15} {'Risk':<10} {'Ret.Pres.':<12}")
+    print(
+        f"   {'Department':<25} {'Role':<20} {'Grade':<15} {'Risk':<10} {'Ret.Pres.':<12}")
     print("   " + "-" * 76)
     for _, row in high_risk.iterrows():
         print(f"   {row['department']:<25} {row['role']:<20} {row['grade']:<15} " +
@@ -350,16 +373,18 @@ else:
 print("\n6) CRITICAL ROLES STAFFING CHECK")
 critical_roles = df_master[df_master['critical_skill'] == True]
 if len(critical_roles) > 0:
-    critical_vacancy_rate = (critical_roles['vacancy_count'].sum() / 
-                            critical_roles['required_headcount'].sum() * 100)
+    critical_vacancy_rate = (critical_roles['vacancy_count'].sum() /
+                             critical_roles['required_headcount'].sum() * 100)
     critical_high_risk = (critical_roles['staffing_risk_flag'] == 'High').sum()
     print(f"   Total critical skill roles:     {len(critical_roles)}")
-    print(f"   Critical roles with vacancies:  {(critical_roles['vacancy_count'] > 0).sum()}")
+    print(
+        f"   Critical roles with vacancies:  {(critical_roles['vacancy_count'] > 0).sum()}")
     print(f"   Avg vacancy rate (critical):    {critical_vacancy_rate:5.1f}%")
     print(f"   Critical roles at HIGH RISK:    {critical_high_risk}")
-    
+
     if critical_high_risk > 0:
-        print(f"\n   🚨 ATTENTION: {critical_high_risk} critical role(s) at high staffing risk")
+        print(
+            f"\n   🚨 ATTENTION: {critical_high_risk} critical role(s) at high staffing risk")
 else:
     print("   No critical skill roles defined")
 
@@ -389,11 +414,14 @@ for grade in ['Assistant', 'Analyst', 'Senior Analyst', 'Manager', 'Director']:
 
 # Summary 9: Data quality check
 print("\n9) DATA QUALITY VALIDATION")
-empty_departments = df_master[df_master['filled_positions'] == 0]['department'].nunique()
+empty_departments = df_master[df_master['filled_positions']
+                              == 0]['department'].nunique()
 if empty_departments > 0:
-    print(f"   ⚠️  {empty_departments} department-grade combinations with zero filled positions")
+    print(
+        f"   ⚠️  {empty_departments} department-grade combinations with zero filled positions")
 print(f"   ✓ {len(df_master)} total position records processed")
-print(f"   ✓ {(df_master['filled_positions'] > 0).sum()} positions have current staff")
+print(
+    f"   ✓ {(df_master['filled_positions'] > 0).sum()} positions have current staff")
 print(f"   ✓ No data integrity issues detected")
 
 print("\n" + "="*80)
