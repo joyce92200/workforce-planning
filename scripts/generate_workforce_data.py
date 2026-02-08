@@ -1,11 +1,7 @@
 """
-Synthetic Workforce Dataset Generator
-OECD-style International Organisation
-Total staff: ~1,200 employees
-Generated: February 7, 2026
-
-This script generates realistic, ethically safe synthetic data for workforce analytics.
-No real personal data is included—all attributes are procedurally generated.
+Workforce Dataset Generator
+Creates realistic synthetic data for workforce analytics.
+Total staff: ~1,200 across 6 departments.
 """
 
 import pandas as pd
@@ -20,11 +16,9 @@ np.random.seed(RANDOM_SEED)
 Faker.seed(RANDOM_SEED)
 fake = Faker()
 
-# ====================================================================
-# CONFIGURATION & CONSTANTS
-# ====================================================================
+# Configuration
 
-# Department distribution (must sum to 100%)
+# Department distribution
 DEPARTMENT_DISTRIBUTION = {
     'Economics & Policy': 0.25,
     'Energy & Climate': 0.20,
@@ -34,7 +28,7 @@ DEPARTMENT_DISTRIBUTION = {
     'Communications': 0.10,
 }
 
-# Grade distribution (must sum to 100%)
+# Grade distribution
 GRADE_DISTRIBUTION = {
     'Assistant': 0.25,
     'Analyst': 0.30,
@@ -43,7 +37,7 @@ GRADE_DISTRIBUTION = {
     'Director': 0.05,
 }
 
-# Age ranges by grade (strict)
+# Age ranges by grade
 GRADE_AGE_RANGES = {
     'Assistant': (23, 35),
     'Analyst': (28, 40),
@@ -52,7 +46,7 @@ GRADE_AGE_RANGES = {
     'Director': (45, 65),
 }
 
-# Contract type distribution by grade (% fixed-term)
+# Fixed-term percentage by grade
 FIXED_TERM_PERCENTAGE = {
     'Assistant': 0.70,
     'Analyst': 0.50,
@@ -76,18 +70,8 @@ TOTAL_HEADCOUNT = 1200
 # Data generation period (years)
 YEARS_LOOKBACK = 15
 
-# ====================================================================
-# STEP 1: GENERATE EMPLOYEES.CSV
-# ====================================================================
-
-
 def generate_employees(total_headcount=TOTAL_HEADCOUNT):
-    """
-    Generate synthetic employee records with realistic distributions.
-
-    Returns:
-        pd.DataFrame: Employee records with all required fields
-    """
+    """Generate employee records with realistic distributions."""
 
     employees = []
 
@@ -119,32 +103,23 @@ def generate_employees(total_headcount=TOTAL_HEADCOUNT):
             fixed_term_pct = FIXED_TERM_PERCENTAGE[grade]
 
             for _ in range(grade_count):
-                # Generate employee attributes
                 emp_id = f"EMP{employee_id_counter:05d}"
                 employee_id_counter += 1
-
                 age = np.random.randint(min_age, max_age + 1)
                 gender = np.random.choice(['Female', 'Male'])
-
-                # Contract type based on grade
                 contract_type = 'Fixed-term' if np.random.random() < fixed_term_pct else 'Open-ended'
-
-                # Hire date: within last 15 years
+                
+                # hire date within last 15 years
                 days_ago = np.random.randint(0, YEARS_LOOKBACK * 365)
                 hire_date = datetime(2011, 2, 7) + timedelta(days=days_ago)
-
-                # Determine attrition (exit date)
+                
+                # some employees leave; check attrition rate
                 exit_date = None
                 attrition_min, attrition_max = ATTRITION_RATES[contract_type]
-                attrition_rate = np.random.uniform(
-                    attrition_min, attrition_max)
-
-                if np.random.random() < attrition_rate:
-                    # Employee has left; exit date is after hire date
+                if np.random.random() < np.random.uniform(attrition_min, attrition_max):
                     max_days_employed = (datetime(2026, 2, 7) - hire_date).days
                     if max_days_employed > 1:
-                        days_employed = np.random.randint(1, max_days_employed)
-                        exit_date = hire_date + timedelta(days=days_employed)
+                        exit_date = hire_date + timedelta(days=np.random.randint(1, max_days_employed))
 
                 employees.append({
                     'employee_id': emp_id,
@@ -161,28 +136,16 @@ def generate_employees(total_headcount=TOTAL_HEADCOUNT):
     return df_employees
 
 
-# ====================================================================
-# STEP 2: GENERATE POSITIONS.CSV
-# ====================================================================
-
 def generate_positions():
-    """
-    Generate positional requirements across departments and roles.
-
-    Returns:
-        pd.DataFrame: Position records with headcount and critical skills
-    """
+    """Generate position records with headcount and critical skills."""
 
     positions = []
     roles = ['Analyst', 'Senior Analyst', 'Manager']
 
     for department in DEPARTMENT_DISTRIBUTION.keys():
         for role in roles:
-            # Random required headcount (15-40)
             required_headcount = np.random.randint(15, 41)
-
-            # ~30% of positions are critical skills
-            critical_skill = True if np.random.random() < 0.30 else False
+            critical_skill = np.random.random() < 0.30  # ~30% are critical
 
             positions.append({
                 'department': department,
@@ -195,27 +158,15 @@ def generate_positions():
     return df_positions
 
 
-# ====================================================================
-# STEP 3: GENERATE RECRUITMENT_PIPELINE.CSV
-# ====================================================================
-
 def generate_recruitment_pipeline():
-    """
-    Generate recruitment pipeline metrics by role and department.
-
-    Returns:
-        pd.DataFrame: Recruitment pipeline records
-    """
+    """Generate recruitment pipeline with time-to-fill and candidate counts."""
 
     pipeline = []
     roles = ['Analyst', 'Senior Analyst', 'Manager']
 
     for department in DEPARTMENT_DISTRIBUTION.keys():
         for role in roles:
-            # Time to fill: 60-180 days
             time_to_fill_days = np.random.randint(60, 181)
-
-            # Pipeline size: 3-25 candidates
             pipeline_size = np.random.randint(3, 26)
 
             pipeline.append({
@@ -229,134 +180,85 @@ def generate_recruitment_pipeline():
     return df_pipeline
 
 
-# ====================================================================
-# VALIDATION & STATISTICS
-# ====================================================================
-
 def validate_and_summarise(df_employees):
-    """
-    Validate distributions and print summary statistics.
-
-    Args:
-        df_employees (pd.DataFrame): Employee dataset
-    """
+    """Print validation checks and summary statistics."""
 
     print("\n" + "="*70)
     print("SYNTHETIC WORKFORCE DATASET - VALIDATION & SUMMARY STATISTICS")
     print("="*70)
 
-    # Overall headcount
-    print(
-        f"\nTotal Active Employees: {len(df_employees[df_employees['exit_date'].isna()])}")
-    print(f"Total Employees (including exits): {len(df_employees)}")
-
-    # Headcount by department
+    active = df_employees[df_employees['exit_date'].isna()]
+    print(f"\nTotal active employees: {len(active)}")
+    print(f"Total employees (including exits): {len(df_employees)}")
     print("\n--- HEADCOUNT BY DEPARTMENT ---")
-    dept_counts = df_employees[df_employees['exit_date'].isna(
-    )]['department'].value_counts()
+    dept_counts = active['department'].value_counts()
     for dept, count in dept_counts.items():
-        pct = (
-            count / len(df_employees[df_employees['exit_date'].isna()])) * 100
-        expected_pct = DEPARTMENT_DISTRIBUTION[dept] * 100
-        print(
-            f"{dept:25s}: {count:4d} ({pct:5.1f}%) [Expected: {expected_pct:5.1f}%]")
+        pct = (count / len(active)) * 100
+        exp = DEPARTMENT_DISTRIBUTION[dept] * 100
+        print(f"{dept:25s}: {count:4d} ({pct:5.1f}%) [Expected: {exp:5.1f}%]")
 
-    # Headcount by grade
     print("\n--- HEADCOUNT BY GRADE ---")
-    grade_counts = df_employees[df_employees['exit_date'].isna(
-    )]['grade'].value_counts()
+    grade_counts = active['grade'].value_counts()
     for grade in ['Assistant', 'Analyst', 'Senior Analyst', 'Manager', 'Director']:
         count = grade_counts.get(grade, 0)
-        pct = (
-            count / len(df_employees[df_employees['exit_date'].isna()])) * 100
-        expected_pct = GRADE_DISTRIBUTION[grade] * 100
-        print(
-            f"{grade:20s}: {count:4d} ({pct:5.1f}%) [Expected: {expected_pct:5.1f}%]")
+        pct = (count / len(active)) * 100
+        exp = GRADE_DISTRIBUTION[grade] * 100
+        print(f"{grade:20s}: {count:4d} ({pct:5.1f}%) [Expected: {exp:5.1f}%]")
 
-    # Contract type distribution
     print("\n--- CONTRACT TYPE DISTRIBUTION ---")
-    contract_counts = df_employees[df_employees['exit_date'].isna(
-    )]['contract_type'].value_counts()
+    contract_counts = active['contract_type'].value_counts()
     for contract in ['Fixed-term', 'Open-ended']:
         count = contract_counts.get(contract, 0)
-        pct = (
-            count / len(df_employees[df_employees['exit_date'].isna()])) * 100
+        pct = (count / len(active)) * 100
         print(f"{contract:20s}: {count:4d} ({pct:5.1f}%)")
 
-    # Attrition rates
     print("\n--- ATTRITION ANALYSIS ---")
-    total_employees = len(df_employees)
-    employees_with_exit = len(df_employees[df_employees['exit_date'].notna()])
-    attrition_rate_overall = (employees_with_exit / total_employees) * 100
-    print(
-        f"Overall Attrition Rate: {attrition_rate_overall:.2f}% ({employees_with_exit} exits)")
-
-    # Attrition by contract type
+    exited = df_employees[df_employees['exit_date'].notna()]
+    attrition_overall = (len(exited) / len(df_employees)) * 100
+    print(f"Overall attrition rate: {attrition_overall:.2f}% ({len(exited)} exits)")
     print("\nAttrition by Contract Type:")
     for contract in ['Fixed-term', 'Open-ended']:
-        total_contract = len(
-            df_employees[df_employees['contract_type'] == contract])
-        exits_contract = len(df_employees[(df_employees['contract_type'] == contract) &
-                                          (df_employees['exit_date'].notna())])
-        if total_contract > 0:
-            rate = (exits_contract / total_contract) * 100
-            print(
-                f"  {contract:20s}: {rate:6.2f}% ({exits_contract:3d} exits of {total_contract:4d})")
+        total_c = len(df_employees[df_employees['contract_type'] == contract])
+        exits_c = len(df_employees[(df_employees['contract_type'] == contract) & (df_employees['exit_date'].notna())])
+        if total_c > 0:
+            rate = (exits_c / total_c) * 100
+            print(f"  {contract:20s}: {rate:6.2f}% ({exits_c:3d} exits of {total_c:4d})")
 
-    # Age analysis
     print("\n--- AGE ANALYSIS ---")
-    avg_age = df_employees[df_employees['exit_date'].isna()]['age'].mean()
-    min_age = df_employees['age'].min()
-    max_age = df_employees['age'].max()
-    print(f"Average Age: {avg_age:.1f} years")
-    print(f"Age Range: {min_age} – {max_age} years")
+    print(f"Average age: {active['age'].mean():.1f} years")
+    print(f"Age range: {df_employees['age'].min()} – {df_employees['age'].max()} years")
+    
+    retirement = len(active[active['age'] >= RETIREMENT_AGE])
+    ret_pct = (retirement / len(active)) * 100
+    print(f"Staff aged 55+: {retirement} ({ret_pct:.1f}%)")
 
-    # Retirement risk (age >= 55)
-    retirement_risk = len(df_employees[(df_employees['exit_date'].isna()) &
-                                       (df_employees['age'] >= RETIREMENT_AGE)])
-    retirement_pct = (
-        retirement_risk / len(df_employees[df_employees['exit_date'].isna()])) * 100
-    print(
-        f"Staff Aged 55+: {retirement_risk} ({retirement_pct:.1f}%) [Retirement Risk]")
-
-    # Gender distribution
     print("\n--- GENDER DISTRIBUTION ---")
-    active_employees = df_employees[df_employees['exit_date'].isna()]
-    gender_counts = active_employees['gender'].value_counts()
+    gender_counts = active['gender'].value_counts()
     for gender in ['Female', 'Male']:
         count = gender_counts.get(gender, 0)
-        pct = (count / len(active_employees)) * 100
+        pct = (count / len(active)) * 100
         print(f"{gender:20s}: {count:4d} ({pct:5.1f}%)")
 
-    # Grade-age validation
     print("\n--- GRADE-AGE RANGE VALIDATION ---")
     all_valid = True
     for grade in GRADE_DISTRIBUTION.keys():
         grade_data = df_employees[df_employees['grade'] == grade]
-        min_age_actual = grade_data['age'].min()
-        max_age_actual = grade_data['age'].max()
-        min_age_expected, max_age_expected = GRADE_AGE_RANGES[grade]
-
-        valid = (min_age_actual >= min_age_expected) and (
-            max_age_actual <= max_age_expected)
-        status = "✓ VALID" if valid else "✗ INVALID"
-        print(f"{grade:20s}: {min_age_actual}-{max_age_actual} years {status} (Expected: {min_age_expected}-{max_age_expected})")
+        min_a, max_a = grade_data['age'].min(), grade_data['age'].max()
+        min_e, max_e = GRADE_AGE_RANGES[grade]
+        valid = (min_a >= min_e and max_a <= max_e)
+        status = "✓" if valid else "✗"
+        print(f"{grade:20s}: {min_a}-{max_a} {status} (Expected: {min_e}-{max_e})")
         if not valid:
             all_valid = False
-
-    print(
-        f"\nOverall Validation: {'✓ ALL CHECKS PASSED' if all_valid else '✗ VALIDATION ISSUES DETECTED'}")
+    
+    print(f"\nValidation: {'✓ OK' if all_valid else '✗ Issues'}")
     print("="*70 + "\n")
 
     return all_valid
 
 
-# ====================================================================
-# MAIN EXECUTION
-# ====================================================================
-
 def main():
-    """Generate and save all workforce datasets."""
+    """Generate and save all datasets."""
 
     print("Generating synthetic workforce dataset...")
 
@@ -365,30 +267,22 @@ def main():
     df_positions = generate_positions()
     df_pipeline = generate_recruitment_pipeline()
 
-    # Get current directory
     output_dir = os.getcwd()
-    print(f"Output directory: {output_dir}\n")
-
-    # Save to CSV
-    employees_path = os.path.join(output_dir, 'employees.csv')
-    positions_path = os.path.join(output_dir, 'positions.csv')
-    pipeline_path = os.path.join(output_dir, 'recruitment_pipeline.csv')
-
-    df_employees.to_csv(employees_path, index=False)
-    df_positions.to_csv(positions_path, index=False)
-    df_pipeline.to_csv(pipeline_path, index=False)
-
-    print(f"✓ Saved: {employees_path}")
-    print(f"✓ Saved: {positions_path}")
-    print(f"✓ Saved: {pipeline_path}\n")
-
-    # Validate and print statistics
+    
+    # save all datasets
+    df_employees.to_csv(os.path.join(output_dir, 'employees.csv'), index=False)
+    df_positions.to_csv(os.path.join(output_dir, 'positions.csv'), index=False)
+    df_pipeline.to_csv(os.path.join(output_dir, 'recruitment_pipeline.csv'), index=False)
+    
+    print("✓ Saved: employees.csv")
+    print("✓ Saved: positions.csv")
+    print("✓ Saved: recruitment_pipeline.csv\n")
+    
     validate_and_summarise(df_employees)
-
-    # Data sample
-    print("SAMPLE DATA (first 10 employees):")
+    
+    print("\nSAMPLE DATA (first 10):")
     print(df_employees.head(10).to_string(index=False))
-    print(f"\n... and {len(df_employees) - 10} more records")
+    print(f"... and {len(df_employees) - 10} more records")
 
 
 if __name__ == '__main__':

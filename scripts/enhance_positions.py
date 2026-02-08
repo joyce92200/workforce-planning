@@ -1,19 +1,6 @@
 """
-Enhance positions.csv for Workforce Planning & Vacancy Analysis
-OECD-style International Organisation
-
-This script transforms the basic positions.csv into a more realistic,
-analytically useful workforce planning dataset that supports:
-- Vacancy rate analysis
-- Succession risk assessment
-- Hiring priority planning
-- Grade-level staffing analysis
-
-Assumptions:
-- Role_family is mapped by department and function
-- Succession risk increases with seniority (Analyst < Senior Analyst < Manager)
-- Hiring priority aligns with critical skills but adds nuance
-- Filled positions are realistic (80-95% fill rate on average)
+Enhance positions.csv with staffing metrics and risk flags.
+Adds vacancy rates, succession risk, and hiring priorities.
 """
 
 import pandas as pd
@@ -24,23 +11,13 @@ from datetime import datetime
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 
-# ====================================================================
-# LOAD EXISTING DATA
-# ====================================================================
-
+# Load data
 df_positions = pd.read_csv('positions.csv')
-
-print("Original positions.csv shape:", df_positions.shape)
-print("\nOriginal schema:")
-print(df_positions.head(10))
-
-# ====================================================================
-# ENHANCEMENT LOGIC
-# ====================================================================
+print(f"Loaded {len(df_positions)} position records\n")
 
 
 def map_role_to_grade(role):
-    """Map role name to grade level."""
+    """Map role name to grade."""
     grade_map = {
         'Analyst': 'Analyst',
         'Senior Analyst': 'Senior Analyst',
@@ -50,14 +27,7 @@ def map_role_to_grade(role):
 
 
 def map_department_to_role_family(department):
-    """
-    Map department to role_family.
-    Role families represent functional areas:
-    - Policy: Policy, strategy, economics
-    - Technical: Data, IT, analytics
-    - Corporate: HR, operations, communications
-    - Digital: Digital transformation, IT infrastructure
-    """
+    """Map department to role family (Policy, Technical, etc)."""
     role_family_map = {
         'Economics & Policy': 'Policy',
         'Energy & Climate': 'Policy',
@@ -70,14 +40,7 @@ def map_department_to_role_family(department):
 
 
 def assign_succession_risk(grade, critical_skill):
-    """
-    Assign succession risk based on grade and criticality.
-
-    Logic:
-    - Analyst: Low by default, Medium if critical
-    - Senior Analyst: Medium, High if critical
-    - Manager: High (key leadership positions)
-    """
+    """Assign succession risk based on grade and criticality."""
     if grade == 'Analyst':
         return 'High' if critical_skill else 'Low'
     elif grade == 'Senior Analyst':
@@ -88,14 +51,7 @@ def assign_succession_risk(grade, critical_skill):
 
 
 def assign_hiring_priority(grade, critical_skill, succession_risk):
-    """
-    Assign hiring priority based on criticality and succession risk.
-
-    Logic:
-    - High: Critical skills OR high succession risk
-    - Medium: Senior roles without critical flag
-    - Low: Analyst roles without critical flag
-    """
+    """Assign hiring priority (High/Medium/Low)."""
     if critical_skill or succession_risk == 'High':
         return 'High'
     elif grade in ['Senior Analyst', 'Manager']:
@@ -105,39 +61,20 @@ def assign_hiring_priority(grade, critical_skill, succession_risk):
 
 
 def calculate_filled_positions(required_headcount, grade, critical_skill):
-    """
-    Calculate realistic filled positions.
-
-    Assumptions:
-    - Analyst roles: 80-90% filled (higher demand/churn)
-    - Senior Analyst: 85-95% filled (critical talent)
-    - Manager: 90-98% filled (senior positions rarer)
-    - Critical skills: higher fill rate (more demand to fill)
-
-    This simulates realistic vacancy patterns in international orgs.
-    """
+    """Estimate filled positions based on grade and criticality."""
+    # Analyst: higher vacancy; Senior/Manager: lower vacancy
     if grade == 'Analyst':
-        # Higher vacancy for Analyst (entry-level turnover)
-        base_fill_rate = 0.87 if critical_skill else 0.82
+        rate = 0.87 if critical_skill else 0.82
     elif grade == 'Senior Analyst':
-        # Lower vacancy for senior roles
-        base_fill_rate = 0.93 if critical_skill else 0.89
-    elif grade == 'Manager':
-        # Very low vacancy (hard to find managers)
-        base_fill_rate = 0.96 if critical_skill else 0.91
-    else:
-        base_fill_rate = 0.90
-
-    # Add realistic variation (±3%)
-    variation = np.random.uniform(-0.03, 0.03)
-    fill_rate = max(0.70, min(0.99, base_fill_rate + variation))
-
-    return int(np.floor(required_headcount * fill_rate))
+        rate = 0.93 if critical_skill else 0.89
+    else:  # Manager
+        rate = 0.96 if critical_skill else 0.91
+    
+    rate = max(0.70, min(0.99, rate + np.random.uniform(-0.03, 0.03)))
+    return int(np.floor(required_headcount * rate))
 
 
-# ====================================================================
-# APPLY ENHANCEMENTS
-# ====================================================================
+# Apply enhancements
 
 # Add grade column
 df_positions['grade'] = df_positions['role'].apply(map_role_to_grade)
@@ -178,30 +115,15 @@ df_positions['vacancy_count'] = (
     df_positions['required_headcount'] - df_positions['filled_positions']
 )
 
-# Add vacancy_rate for analytics
-df_positions['vacancy_rate'] = (
-    df_positions['vacancy_count'] / df_positions['required_headcount'] * 100
-).round(1)
+df_positions['vacancy_rate'] = (df_positions['vacancy_count'] / df_positions['required_headcount'] * 100).round(1)
 
-# ====================================================================
-# REORDER COLUMNS FOR CLARITY
-# ====================================================================
-
-column_order = [
-    'department',
-    'role',
-    'grade',
-    'role_family',
-    'required_headcount',
-    'filled_positions',
-    'vacancy_count',
-    'vacancy_rate',
-    'critical_skill',
-    'hiring_priority',
-    'succession_risk',
+# Reorder columns
+cols = [
+    'department', 'role', 'grade', 'role_family',
+    'required_headcount', 'filled_positions', 'vacancy_count', 'vacancy_rate',
+    'critical_skill', 'hiring_priority', 'succession_risk',
 ]
-
-df_positions = df_positions[column_order]
+df_positions = df_positions[cols]
 
 # ====================================================================
 # VALIDATION & CONSTRAINTS

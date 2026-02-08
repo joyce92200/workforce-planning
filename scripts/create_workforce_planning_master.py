@@ -1,127 +1,60 @@
 """
 Workforce Planning Master Dataset Generator
-OECD-style International Organisation
-
-Purpose:
-Create a unified analytical dataset joining employees.csv and positions.csv
-to support:
-- Vacancy analysis and forecasting
-- Succession risk assessment
-- Staffing gap identification
-- Department-level hiring prioritization
-
-Join Logic:
-1. Aggregate employees by department + grade → filled_positions, retirement_risk
-2. Join with positions.csv on department + grade
-3. Add derived risk flags for management decision-making
-
-Output: workforce_planning_master.csv (executive-ready)
+Joins employee and position data with risk metrics for workforce planning.
 """
 
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
-print("\n" + "="*80)
-print("WORKFORCE PLANNING MASTER DATASET - CREATION")
-print("="*80 + "\n")
+print("\nCreating workforce planning master dataset...\n")
 
-# ====================================================================
-# STEP 1: LOAD SOURCE DATA
-# ====================================================================
-
-print("Loading source datasets...")
+# Load data
 df_employees = pd.read_csv('employees.csv')
 df_positions = pd.read_csv('positions.csv')
 
-print(f"✓ Loaded employees.csv: {len(df_employees)} total employee records")
-print(f"✓ Loaded positions.csv: {len(df_positions)} position records\n")
+print(f"Loaded: {len(df_employees)} employee records, {len(df_positions)} positions")
 
-# ====================================================================
-# STEP 2: AGGREGATE EMPLOYEES BY DEPARTMENT + GRADE
-# ====================================================================
 
-print("Aggregating employees by department + grade...")
-
-# Filter to active employees only (exit_date is null/NaN)
+# Aggregate employees by department + grade
 df_active = df_employees[df_employees['exit_date'].isna()].copy()
+print(f"Active employees: {len(df_active)}")
 
-print(f"  → {len(df_active)} active employees (exit_date is null)")
-
-# Aggregate by department and grade
-df_employees_agg = df_active.groupby(['department', 'grade']).agg({
-    'employee_id': 'count',           # Count of employees
-    'age': ['mean', 'std'],           # Age statistics
+# Count employees and calculate retirement risk
+df_emp_agg = df_active.groupby(['department', 'grade']).agg({
+    'employee_id': 'count',
+    'age': ['mean', 'std'],
 }).reset_index()
 
-# Flatten column names
-df_employees_agg.columns = ['department', 'grade',
-                            'filled_positions', 'avg_age', 'age_stdev']
+df_emp_agg.columns = ['department', 'grade', 'filled_positions', 'avg_age', 'age_stdev']
 
 # Calculate retirement risk (age >= 55)
-df_retirement = df_active.groupby(['department', 'grade']).apply(
+df_ret = df_active.groupby(['department', 'grade']).apply(
     lambda x: (x['age'] >= 55).sum()
 ).reset_index(name='retirement_risk_count')
 
-# Merge retirement data
-df_employees_agg = df_employees_agg.merge(
-    df_retirement,
-    on=['department', 'grade'],
-    how='left'
-)
+df_emp_agg = df_emp_agg.merge(df_ret, on=['department', 'grade'], how='left')
+df_emp_agg['retirement_risk_pct'] = (df_emp_agg['retirement_risk_count'] / df_emp_agg['filled_positions'] * 100).round(1)
+df_emp_agg['age_stdev'] = df_emp_agg['age_stdev'].fillna(0).round(1)
+df_emp_agg['avg_age'] = df_emp_agg['avg_age'].round(1)
 
-# Calculate retirement risk percentage
-df_employees_agg['retirement_risk_pct'] = (
-    df_employees_agg['retirement_risk_count'] /
-    df_employees_agg['filled_positions'] * 100
-).round(1)
+print(f"Aggregated into {len(df_emp_agg)} department-grade groups\n")
 
-# Clean up: fill NaN in age_stdev (single person per group)
-df_employees_agg['age_stdev'] = df_employees_agg['age_stdev'].fillna(
-    0).round(1)
-df_employees_agg['avg_age'] = df_employees_agg['avg_age'].round(1)
 
-print(f"✓ Created {len(df_employees_agg)} department-grade combinations\n")
+# Join with positions
+print("Joining with positions data...")
 
-# ====================================================================
-# STEP 3: JOIN WITH POSITIONS DATA
-# ====================================================================
+df_emp_merge = df_emp_agg[['department', 'grade', 'avg_age', 'age_stdev', 'retirement_risk_count', 'retirement_risk_pct']]
 
-print("Joining with positions.csv...")
+df_master = df_positions.merge(df_emp_merge, on=['department', 'grade'], how='left')
 
-# The strategy:
-# 1. Keep positions.csv columns (required_headcount, vacancy_count, etc.)
-# 2. Add ONLY the employee aggregation metrics (avg_age, retirement risk)
-# 3. Do NOT merge filled_positions - use the one from positions.csv
-#    (it was calculated realistically during positions enhancement)
-
-# Remove filled_positions from employees aggregation to avoid merge conflict
-df_employees_agg_for_merge = df_employees_agg[
-    ['department', 'grade', 'avg_age', 'age_stdev',
-        'retirement_risk_count', 'retirement_risk_pct']
-]
-
-# Perform LEFT join: keep all positions
-df_master = df_positions.merge(
-    df_employees_agg_for_merge,
-    on=['department', 'grade'],
-    how='left'
-)
-
-# Fill missing values for positions with no current employees:
-# - avg_age, age_stdev, retirement metrics = 0 (no one in the role yet)
+# Fill missing values (no employees in those roles yet)
 df_master['avg_age'] = df_master['avg_age'].fillna(0).round(1)
 df_master['age_stdev'] = df_master['age_stdev'].fillna(0).round(1)
-df_master['retirement_risk_count'] = df_master['retirement_risk_count'].fillna(
-    0).astype(int)
-df_master['retirement_risk_pct'] = df_master['retirement_risk_pct'].fillna(
-    0).round(1)
+df_master['retirement_risk_count'] = df_master['retirement_risk_count'].fillna(0).astype(int)
+df_master['retirement_risk_pct'] = df_master['retirement_risk_pct'].fillna(0).round(1)
 
-print(f"✓ Joined dataset: {len(df_master)} positions")
-print(
-    f"  (Note: filled_positions from positions.csv: {df_master['filled_positions'].sum()} total)")
-
-print(f"✓ Joined dataset: {len(df_master)} rows")
+print(f"Joined dataset: {len(df_master)} positions\n")
 
 # ====================================================================
 # STEP 4: VALIDATION - LOGICAL CONSTRAINTS
